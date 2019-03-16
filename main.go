@@ -12,15 +12,18 @@ import (
 	"strings"
 )
 
-func main() {
+func init() {
 	log.SetFlags(log.LUTC | log.Lmicroseconds)
 	log.SetPrefix(filepath.Base(os.Args[0] + ": "))
+}
 
+func main() {
 	layouts, err := validLayouts()
-	if err != nil {
+	switch {
+	case err != nil:
 		log.Printf("cannot retrieve valid layouts: %s", err)
 		return
-	} else if len(layouts) == 0 {
+	case len(layouts) == 0:
 		return
 	}
 
@@ -29,8 +32,7 @@ func main() {
 		i := sort.SearchStrings(layouts, l)
 
 		if !(i < len(layouts) && layouts[i] == l) {
-			// missing
-			continue
+			continue // missing
 		}
 
 		rotation = append(rotation, l)
@@ -38,8 +40,7 @@ func main() {
 	sort.Strings(rotation)
 
 	if len(rotation) < 2 {
-		// nothing to rotate
-		return
+		return // nothing to rotate
 	}
 
 	current, err := currentLayout()
@@ -75,20 +76,21 @@ func validLayouts() ([]string, error) {
 	}
 
 	var ret []string
-
+loop:
 	for {
 		token, err := buf.ReadString('\n')
 
-		if err == io.EOF {
-			break
-		} else if err != nil {
+		switch err {
+		case nil:
+			ret = append(ret, strings.TrimSpace(token))
+		case io.EOF:
+			break loop
+		default:
 			return nil, err
 		}
-
-		ret = append(ret, strings.TrimSpace(token))
 	}
-
 	sort.Strings(ret)
+
 	return ret, nil
 }
 
@@ -105,12 +107,15 @@ func currentLayout() (string, error) {
 
 	ret := ""
 
+loop:
 	for {
 		line, err := buf.ReadString('\n')
-
-		if err == io.EOF {
+		switch err {
+		case nil:
 			break
-		} else if err != nil {
+		case io.EOF:
+			break loop
+		default:
 			return "", err
 		}
 
