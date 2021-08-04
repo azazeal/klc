@@ -8,135 +8,128 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
+
+	"github.com/azazeal/exit"
 )
 
 func init() {
-	log.SetFlags(log.LUTC | log.Lmicroseconds)
+	log.SetFlags(log.LUTC | log.Lmicroseconds | log.Lmsgprefix)
 	log.SetPrefix(filepath.Base(os.Args[0] + ": "))
 }
 
 func main() {
-	layouts, err := validLayouts()
-	switch {
-	case err != nil:
-		log.Printf("cannot retrieve valid layouts: %s", err)
-		return
-	case len(layouts) == 0:
-		return
-	}
-
-	var rotation []string
-	for _, l := range os.Args[1:] {
-		i := sort.SearchStrings(layouts, l)
-
-		if !(i < len(layouts) && layouts[i] == l) {
-			continue // missing
-		}
-
-		rotation = append(rotation, l)
-	}
-	sort.Strings(rotation)
-
-	if len(rotation) < 2 {
-		return // nothing to rotate
-	}
-
-	current, err := currentLayout()
-	if err != nil {
-		log.Printf("cannot get current layouts: %s", err)
-	}
-
-	index := sort.SearchStrings(rotation, current)
-	if index >= len(rotation) || rotation[index] != current {
-		// missing
-		return
-	}
-
-	if index == len(rotation)-1 {
-		index = 0
-	} else {
-		index++
-	}
-
-	newLayout := rotation[index]
-	if err := setLayout(newLayout); err != nil {
-		log.Printf("cannot switch to %q: %s", newLayout, err)
-	}
+	exit.With(run())
 }
 
-func validLayouts() ([]string, error) {
-	buf := &bytes.Buffer{}
+func run() (err error) {
+	var keyboards []*keyboard
+	if keyboards, err = detect(); err != nil {
+		log.Printf("failed detecting keyboards: %v", err)
 
-	cmd := exec.Command("localectl", "--no-pager", "list-x11-keymap-layouts")
-	cmd.Stdout = buf
-	if err := cmd.Run(); err != nil {
-		return nil, err
+		return
 	}
 
-	var ret []string
-loop:
-	for {
-		token, err := buf.ReadString('\n')
+	// rotate
+	k := keyboards[0]
+	copy(keyboards, keyboards[1:])
+	keyboards[len(keyboards)-1] = k
 
-		switch err {
-		case nil:
-			ret = append(ret, strings.TrimSpace(token))
-		case io.EOF:
-			break loop
-		default:
-			return nil, err
-		}
+	if err = set(keyboards); err != nil {
+		log.Printf("failed setting keyboards: %v", err)
 	}
-	sort.Strings(ret)
 
-	return ret, nil
+	return
 }
 
-func currentLayout() (string, error) {
-	const prefix = "layout:"
+type keyboard struct {
+	layout  string
+	variant string
+}
 
-	buf := &bytes.Buffer{}
+const (
+	_ = iota
+	ecDetect
+	ecNoKeyboards
+	ecSwitch
+)
 
-	cmd := exec.Command("setxkbmap", "-query")
-	cmd.Stdout = buf
-	if err := cmd.Run(); err != nil {
-		return "", err
+var errNoKeyboards = exit.Wrap(ecNoKeyboards, errors.New("no keyboards detected"))
+
+func detect() (keyboards []*keyboard, err error) {
+	defer func() {
+		switch {
+		case err != nil:
+			err = exit.Wrap(ecDetect, err)
+		case len(keyboards) == 0:
+			err = errNoKeyboards
+		}
+	}()
+
+	var buf *bytes.Buffer
+	if buf, err = capture("setxkbmap", "-query"); err != nil {
+		return
 	}
 
-	ret := ""
-
-loop:
 	for {
-		line, err := buf.ReadString('\n')
-		switch err {
-		case nil:
-			break
-		case io.EOF:
-			break loop
-		default:
-			return "", err
-		}
+		var line string
+		if line, err = buf.ReadString('\n'); err != nil {
+			if err == io.EOF {
+				err = nil
+			}
 
-		if !strings.HasPrefix(line, prefix) {
-			continue
-		}
-
-		tokens := strings.Split(strings.TrimSpace(line[len(prefix):]), ",")
-		if len(tokens) > 0 {
-			ret = tokens[0]
 			break
 		}
+
+		switch {
+		case strings.HasPrefix(line, "layout:"):
+			line = strings.TrimSpace(strings.TrimPrefix(line, "layout:"))
+
+			for _, l := range strings.Split(line, ",") {
+				keyboards = append(keyboards, &keyboard{
+					layout: l,
+				})
+			}
+		case strings.HasPrefix(line, "variant:"):
+			line = strings.TrimSpace(strings.TrimPrefix(line, "variant:"))
+
+			for i, variant := range strings.Split(line, ",") {
+				keyboards[i].variant = variant
+			}
+		}
 	}
 
-	if ret == "" {
-		return ret, errors.New("no current layout determined")
-	}
-
-	return ret, nil
+	return
 }
 
-func setLayout(l string) error {
-	return exec.Command("setxkbmap", "-layout", l).Run()
+func set(keyboards []*keyboard) (err error) {
+	defer func() {
+		if err != nil {
+			err = exit.Wrap(ecSwitch, err)
+		}
+	}()
+
+	// setxkbmap -layout us,gr -variant ,simple -option "grp:alt_space_toggle"
+
+	var layouts, variants []string
+	for _, k := range keyboards {
+		layouts = append(layouts, k.layout)
+		variants = append(variants, k.variant)
+	}
+
+	err = exec.Command("setxkbmap",
+		"-layout", strings.Join(layouts, ","),
+		"-variant", strings.Join(variants, ","),
+	).Run()
+
+	return
+}
+
+func capture(name string, args ...string) (*bytes.Buffer, error) {
+	buf := &bytes.Buffer{}
+
+	cmd := exec.Command(name, args...)
+	cmd.Stdout = buf
+
+	return buf, cmd.Run()
 }
