@@ -1,5 +1,5 @@
 module github.com/azazeal/klc
 
-go 1.16
+go 1.17
 
 require github.com/azazeal/exit v0.0.0-20210316143728-f8159cc321b4
