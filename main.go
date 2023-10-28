@@ -74,7 +74,7 @@ func detect() (keyboards []*keyboard, err error) {
 	for {
 		var line string
 		if line, err = buf.ReadString('\n'); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				err = nil
 			}
 
