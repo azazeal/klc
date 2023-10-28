@@ -14,17 +14,21 @@ However, Xubuntu's handling of keypresses is unwilling to abide by my very simpl
 * Alt+Ctrl+Shift+Arrow: moves windows to different workspaces
 * Alt+Shift: should rotate the current keyboard layout to a different locale.
 
-The reason Xubuntu won't do this very simple thing through it's builtin layout switcher is probably,
-_and I say probably because I gave up reading through thousands of lines of C code_, because instead of handling events on key press, they handle events on key down and this creates collisions as multiple shortcuts which use similar keys start to race against each other.
+The reason Xubuntu won't do this very simple thing through it's builtin layout switcher is probably
+because instead of handling events on key press, they handle events on key down and this creates 
+collisions as multiple shortcuts which use similar keys start to race against each other.
 
 It's either that or whatever.
 
 ## Usage
 
-`klc us gr fr`: will rotate they keyboard layout (when executed) respecting the supplied rotation of locales.
+`klc us gr fr`: will rotate they keyboard layout (when executed) respecting the supplied rotation of 
+locales.
 
 ## Fixing Xubuntu's layout switcher
 
-* Remove any shortcut you may have applied to the `Layout` section of the `Keyboard` settings' applet.
-* Add a shortcut to `klc` in the `Application Shortcuts` tab of the same `Keyboard` settings' apple appending your locales and assign a shortcut to it.
+* Remove any shortcut you may have applied to the `Layout` section of the `Keyboard` settings' 
+applet.
+* Add a shortcut to `klc` in the `Application Shortcuts` tab of the same `Keyboard` settings' applet
+appending your locales and assign a shortcut to it.
 * Profit.
