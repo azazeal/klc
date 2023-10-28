@@ -1,6 +1,8 @@
 name: Build
 
 on:
+  schedule:
+    - cron: "0 6 * * MON"
   push:
     tags-ignore:
       - "**"
@@ -21,7 +23,7 @@ jobs:
     uses: azazeal/workflows/.github/workflows/ghlint.yml@master
     permissions:
       pull-requests: write # required in order to annotate a PR with comments
-    
+
   call-gopkg:
     name: Call Build Go package
     uses: azazeal/workflows/.github/workflows/gopkg.yml@master
