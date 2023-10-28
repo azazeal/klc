@@ -117,7 +117,7 @@ func set(keyboards []*keyboard) (err error) {
 		variants = append(variants, k.variant)
 	}
 
-	err = exec.Command("setxkbmap",
+	err = exec.Command("setxkbmap", //nolint:gosec // args are provided by the user
 		"-layout", strings.Join(layouts, ","),
 		"-variant", strings.Join(variants, ","),
 	).Run()
