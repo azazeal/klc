@@ -30,3 +30,4 @@ jobs:
     with:
       disable-macos-tests: true
       disable-windows-tests: true
+      disable-coverage-upload: true
