@@ -1,8 +1,6 @@
 name: Build
 
 on:
-  schedule:
-    - cron: "0 6 * * MON"
   push:
     tags-ignore:
       - "**"
@@ -22,12 +20,17 @@ jobs:
     name: Call Lint Github workflows
     uses: azazeal/workflows/.github/workflows/ghlint.yml@master
     permissions:
-      pull-requests: write # required in order to annotate a PR with comments
+      pull-requests: write
 
   call-gopkg:
     name: Call Build Go package
     uses: azazeal/workflows/.github/workflows/gopkg.yml@master
+    permissions:
+      pull-requests: write
     with:
       disable-macos-tests: true
+      disable-macos-linter: true
       disable-windows-tests: true
+      disable-windows-linter: true
       disable-coverage-upload: true
+
